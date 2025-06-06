@@ -1,0 +1,50 @@
+name: "vacuum OpenAPI Linter"
+description: "Lint/Quality and OpenAPI spec using vacuum, the world's fastest OpenAPI linter"
+
+inputs:
+  openapi_path:
+    description: "Path to the OpenAPI spec file (relative to repo root)"
+    required: true
+  ruleset:
+    description: "Optional ruleset file or URL for vacuum lint"
+    required: false
+    default: ""
+
+outputs:
+  report:
+    description: "Markdown-formatted lint report from vacuum"
+    value: ${{ steps.lint.outputs.report }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Lint with vacuum in Docker
+      id: lint
+      shell: bash
+      run: |
+        # Build the Docker command
+        CMD="docker run --rm -v ${{ github.workspace }}:/work:ro dshanley/vacuum lint ${{ inputs.openapi_path }}"
+        if [ -n "${{ inputs.ruleset }}" ]; then
+          CMD="$CMD --ruleset ${{ inputs.ruleset }}"
+        fi
+        echo "Running: $CMD"
+        # Capture Markdown output
+        report=$($CMD)
+        # Expose it as the action output named 'report'
+        echo "::set-output name=report::$report"
+      env:
+        DOCKER_BUILDKIT: 1
+
+#    - name: Create or Update Comment on PR
+#      if: ${{ github.event_name == 'pull_request' }}
+#      uses: peter-evans/create-or-update-comment@v4
+#      with:
+#        token: ${{ secrets.GITHUB_TOKEN }}
+#        repository: ${{ github.repository }}
+#        issue-number: ${{ github.event.pull_request.number }}
+#        body-includes: '<!-- vacuum-lint-report -->'
+#        body: |
+#          <!-- vacuum-lint-report -->
+#          ### Vacuum Lint Results
+#          ${{ steps.lint.outputs.report }}
+#        edit-mode: replace
