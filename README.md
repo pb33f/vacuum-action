@@ -30,17 +30,17 @@ permissions:
 
 jobs:
   vacuum-lint:
+    name: Run OpenAPI linting with vacuum
     runs-on: ubuntu-latest
-
     steps:
-      - name: Check out repository
+      - name: Checkout repository
         uses: actions/checkout@v3
 
-      - name: Run OpenAPI linting with vacuum
-        id: lint-step
+      - name: Run OpenAPI lint with vacuum
         uses: pb33f/vacuum-action@v1
         with:
-          openapi_path: "path/to/your/openapi-spec.yaml"
+          openapi_path: "static/wiretap/giftshop-openapi.yaml"
+          github_token: ${{ secrets.GITHUB_TOKEN }}
           # ruleset: "rules/custom-rules.yaml" << Uncomment to use a custom ruleset
 ```
 
