@@ -45,8 +45,8 @@ runs:
         } > "$REPORT_FILE"
 
         # Output the path so the workflow can locate it.
-        echo "::set-output name=report_path::vacuum-lint-report.md"
-        echo "report generated"
+        echo "report_path=vacuum-lint-report.md" >> $GITHUB_OUTPUT
+        echo "report generated\n\n ${report}"
       env:
         DOCKER_BUILDKIT: 1
 
@@ -83,7 +83,7 @@ runs:
         issue-number: ${{ github.event.pull_request.number }}
         comment-id: ${{ steps.find-comment.outputs.comment-id }}
         # Instead of passing 'body:', we give the path to our Markdown file:
-        body-path: ${{ steps.lint-step.outputs.report_path }}
+        body-path: ${{ GITHUB_OUTPUT.report_path }}
         edit-mode: replace
 
 
