@@ -44,10 +44,10 @@ runs:
         token: ${{ inputs.github_token }}
         repository: ${{ github.repository }}
         issue-number: ${{ github.event.pull_request.number }}
-        body-includes: '<!-- vacuum-lint-report -->'
+        comment-id: ${{ steps.find-comment.outputs.comment-id }}
         body: |
           <!-- vacuum-lint-report -->
-          ${{ steps.lint.outputs.report }}
+          ${{ steps.lint-step.outputs.report }}
         edit-mode: replace
 
 
