@@ -13,10 +13,6 @@ inputs:
     description: "GitHub token (needs write permissions on PRs to post comments)"
     required: true
 
-#outputs:
-#  report:
-#    description: "Markdown‐formatted lint report from vacuum"
-
 runs:
   using: "composite"
   steps:
@@ -50,22 +46,6 @@ runs:
       env:
         DOCKER_BUILDKIT: 1
 
-#    - name: Create or update comment on PR
-#      if: ${{ github.event_name == 'pull_request' }}
-#      uses: peter-evans/create-or-update-comment@v4
-#      with:
-#        token: ${{ inputs.github_token }}
-#        repository: ${{ github.repository }}
-#        issue-number: ${{ github.event.pull_request.number }}
-#        comment-id: ${{ steps.find-comment.outputs.comment-id }}
-#        body: |
-#          <!-- vacuum-lint-report -->
-#          ${{ steps.lint-step.outputs.report }}
-#        edit-mode: replace
-
-
-
-
     - name: Find existing vacuum-lint comment (if any)
       id: find-comment
       uses: peter-evans/find-comment@v3
@@ -73,6 +53,15 @@ runs:
         issue-number: ${{ github.event.pull_request.number }}
         comment-author: 'pb33f-bot'
         body-includes: "<!-- vacuum-lint-report -->"
+
+
+    - name: Generate GitHub App token
+      id: generate-app-token
+      uses: crazy-max/ghaction-github-app-token@v1
+      with:
+        app_id: ${{ secrets.GH_APP_ID }}
+        pem: ${{ secrets.GH_APP_PEM }}
+        repository: ${{ github.repository }}
 
     - name: Create or update vacuum-lint comment
       if: always()
@@ -82,7 +71,6 @@ runs:
         repository: ${{ github.repository }}
         issue-number: ${{ github.event.pull_request.number }}
         comment-id: ${{ steps.find-comment.outputs.comment-id }}
-        # Instead of passing 'body:', we give the path to our Markdown file:
         body-path: ${{ steps.lint.outputs.report_path }}
         edit-mode: replace
 

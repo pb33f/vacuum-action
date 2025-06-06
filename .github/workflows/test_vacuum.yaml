@@ -1,5 +1,4 @@
-# .github/workflows/test_vacuum.yaml
-name: "Lint OpenAPI Spec and Comment on PR"
+name: "Lint OpenAPI specification using vacuum"
 
 on:
   push:
@@ -21,7 +20,7 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v3
 
-      - name: Run vacuum-lint composite action
+      - name: Run vacuum-lint
         uses: ./
         with:
           openapi_path: "sample-specs/burgershop.yaml"
