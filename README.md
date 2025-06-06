@@ -42,26 +42,6 @@ jobs:
         with:
           openapi_path: "path/to/your/openapi-spec.yaml"
           # ruleset: "rules/custom-rules.yaml" << Uncomment to use a custom ruleset
-    
-      # The following steps will add the vacuum report as a comment on the pull request.
-      - name: Find existing vacuum report
-        id: find-comment
-        uses: peter-evans/find-comment@v3
-        with:
-          issue-number: ${{ github.event.pull_request.number || github.event.number }}
-          comment-author: 'github-actions[bot]'
-          body-includes: '<!-- vacuum-lint-report -->'
-
-      - name: Create or update vacuum report
-        if: ${{ github.event_name == 'pull_request' }}
-        uses: peter-evans/create-or-update-comment@v4
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          repository: ${{ github.repository }}
-          issue-number: ${{ github.event.pull_request.number }}
-          comment-id: ${{ steps.find-comment.outputs.comment-id }}
-          body-path: ${{ steps.lint-step.outputs.report_path }}
-          edit-mode: replace
 ```
 
 To learn more about vacuum visit the [vacuum docs](https://quobix.com/vacuum/)
