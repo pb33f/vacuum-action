@@ -20,7 +20,7 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v3
 
-      - name: Run vacuum-lint
+      - name: Run OpenAPI lint with vacuum
         uses: ./
         with:
           openapi_path: "sample-specs/burgershop.yaml"
