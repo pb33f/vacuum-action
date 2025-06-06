@@ -55,14 +55,6 @@ runs:
         body-includes: "<!-- vacuum-lint-report -->"
 
 
-    - name: Generate GitHub App token
-      id: generate-app-token
-      uses: crazy-max/ghaction-github-app-token@v1
-      with:
-        app_id: ${{ secrets.GH_APP_ID }}
-        pem: ${{ secrets.GH_APP_PEM }}
-        repository: ${{ github.repository }}
-
     - name: Create or update vacuum-lint comment
       if: always()
       uses: peter-evans/create-or-update-comment@v4
