@@ -4,7 +4,7 @@ name: "Lint OpenAPI Spec and Comment on PR"
 on:
   push:
     branches:
-      - feature/docker-lint
+      - dev
   workflow_dispatch: {}
 
 permissions:
@@ -23,3 +23,4 @@ jobs:
         uses: ./
         with:
           openapi_path: "sample-specs/burgershop.yaml"
+          github_token: ${{ secrets.GITHUB_TOKEN }}

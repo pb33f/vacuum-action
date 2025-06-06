@@ -9,11 +9,13 @@ inputs:
     description: "Optional ruleset file or URL for vacuum lint (e.g. 'rules/ruleset.yaml')"
     required: false
     default: ""
+  github_token:
+    description: "GitHub token (needs write permissions on PRs to post comments)"
+    required: true
 
 outputs:
   report:
-    description: "Markdown-formatted lint report from vacuum"
-    # Note: you do NOT need to repeat 'value:' here; outputs get set by steps.
+    description: "Markdown‐formatted lint report from vacuum"
 
 runs:
   using: "composite"
@@ -22,7 +24,6 @@ runs:
       id: lint
       shell: bash
       run: |
-        # Build the Docker command
         CMD="docker run --rm \
           -v ${{ github.workspace }}:/work:ro \
           dshanley/vacuum lint \
@@ -32,8 +33,6 @@ runs:
         fi
         echo "Running: $CMD"
         report=$($CMD)
-
-        # Expose it as the action output named 'report'
         echo "::set-output name=report::$report"
       env:
         DOCKER_BUILDKIT: 1
@@ -42,7 +41,7 @@ runs:
       if: ${{ github.event_name == 'pull_request' }}
       uses: peter-evans/create-or-update-comment@v4
       with:
-        token: ${{ secrets.GITHUB_TOKEN }}
+        token: ${{ inputs.github_token }}
         repository: ${{ github.repository }}
         issue-number: ${{ github.event.pull_request.number }}
         body-includes: '<!-- vacuum-lint-report -->'
@@ -50,3 +49,6 @@ runs:
           <!-- vacuum-lint-report -->
           ${{ steps.lint.outputs.report }}
         edit-mode: replace
+
+
+
