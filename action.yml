@@ -13,9 +13,9 @@ inputs:
     description: "GitHub token (needs write permissions on PRs to post comments)"
     required: true
 
-outputs:
-  report:
-    description: "Markdown‐formatted lint report from vacuum"
+#outputs:
+#  report:
+#    description: "Markdown‐formatted lint report from vacuum"
 
 runs:
   using: "composite"
@@ -46,6 +46,7 @@ runs:
 
         # Output the path so the workflow can locate it.
         echo "::set-output name=report_path::vacuum-lint-report.md"
+        echo "report generated"
       env:
         DOCKER_BUILDKIT: 1
 
