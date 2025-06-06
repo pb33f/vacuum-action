@@ -1,11 +1,12 @@
-# .github/workflows/test_vacuum.yaml
-name: "Lint OpenAPI Spec and Comment on PR"
+name: "Lint OpenAPI specification using vacuum"
 
 on:
   push:
     branches:
-      - feature/docker-lint
-  workflow_dispatch: {}
+      - main
+  pull_request:
+    branches:
+      - main
 
 permissions:
   contents: read
@@ -19,7 +20,8 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v3
 
-      - name: Run vacuum-lint composite action
+      - name: Run OpenAPI lint with vacuum
         uses: ./
         with:
           openapi_path: "sample-specs/burgershop.yaml"
+          github_token: ${{ secrets.GITHUB_TOKEN }}
