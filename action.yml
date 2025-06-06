@@ -71,7 +71,7 @@ runs:
       uses: peter-evans/find-comment@v3
       with:
         issue-number: ${{ github.event.pull_request.number }}
-        comment-author: 'github-actions[bot]'
+        comment-author: 'pb33f-bot'
         body-includes: "<!-- vacuum-lint-report -->"
 
     - name: Create or update vacuum-lint comment
@@ -83,7 +83,7 @@ runs:
         issue-number: ${{ github.event.pull_request.number }}
         comment-id: ${{ steps.find-comment.outputs.comment-id }}
         # Instead of passing 'body:', we give the path to our Markdown file:
-        body-path: ${{ GITHUB_OUTPUT.report_path }}
+        body-path: ${{ steps.lint.outputs.report_path }}
         edit-mode: replace
 
 
