@@ -14,7 +14,7 @@ There are currently two properties required.
 - `ruleset` - (optional) The path to a custom ruleset file, relative to the root of your repository. If not provided, the default ruleset will be used.
 
 ```yaml
-name: "Lint OpenAPI spec with Vacuum"
+name: "Lint OpenAPI spec with vacuum"
 
 on:
   push:
