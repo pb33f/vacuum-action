@@ -33,22 +33,58 @@ runs:
         fi
         echo "Running: $CMD"
         report=$($CMD)
-        echo "::set-output name=report::$report"
+        #
+        # Write the full Markdown report (including our HTML comment marker) to a file.
+        # We prepend "<!-- vacuum-lint-report -->" so that downstream steps can find it.
+        #
+        REPORT_FILE="$GITHUB_WORKSPACE/vacuum-lint-report.md"
+        {
+          echo "<!-- vacuum-lint-report -->"
+          echo
+          echo "$report"
+        } > "$REPORT_FILE"
+
+        # Output the path so the workflow can locate it.
+        echo "::set-output name=report_path::vacuum-lint-report.md"
       env:
         DOCKER_BUILDKIT: 1
 
-    - name: Create or update comment on PR
-      if: ${{ github.event_name == 'pull_request' }}
+#    - name: Create or update comment on PR
+#      if: ${{ github.event_name == 'pull_request' }}
+#      uses: peter-evans/create-or-update-comment@v4
+#      with:
+#        token: ${{ inputs.github_token }}
+#        repository: ${{ github.repository }}
+#        issue-number: ${{ github.event.pull_request.number }}
+#        comment-id: ${{ steps.find-comment.outputs.comment-id }}
+#        body: |
+#          <!-- vacuum-lint-report -->
+#          ${{ steps.lint-step.outputs.report }}
+#        edit-mode: replace
+
+
+
+
+    - name: Find existing vacuum-lint comment (if any)
+      id: find-comment
+      uses: peter-evans/find-comment@v3
+      with:
+        issue-number: ${{ github.event.pull_request.number }}
+        comment-author: 'github-actions[bot]'
+        body-includes: "<!-- vacuum-lint-report -->"
+
+    - name: Create or update vacuum-lint comment
+      if: always()
       uses: peter-evans/create-or-update-comment@v4
       with:
         token: ${{ inputs.github_token }}
         repository: ${{ github.repository }}
         issue-number: ${{ github.event.pull_request.number }}
         comment-id: ${{ steps.find-comment.outputs.comment-id }}
-        body: |
-          <!-- vacuum-lint-report -->
-          ${{ steps.lint-step.outputs.report }}
+        # Instead of passing 'body:', we give the path to our Markdown file:
+        body-path: ${{ steps.lint-step.outputs.report_path }}
         edit-mode: replace
+
 
 
 
