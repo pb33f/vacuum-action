@@ -23,5 +23,20 @@ jobs:
       - name: Run OpenAPI lint with vacuum
         uses: ./
         with:
+          show_rules: true
+          fail_on_error: true
+          minimum_score: 80
+          print_logs: false
+          openapi_path: "sample-specs/burgershop.yaml"
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Run OpenAPI lint with vacuum and custom ruleset
+        uses: ./
+        with:
+          show_rules: true
+          fail_on_error: true
+          minimum_score: 80
+          print_logs: true
+          ruleset: "sample-specs/ruleset.yaml"
           openapi_path: "sample-specs/burgershop.yaml"
           github_token: ${{ secrets.GITHUB_TOKEN }}
