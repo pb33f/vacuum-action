@@ -1,12 +1,7 @@
 name: "Lint OpenAPI specification using vacuum"
 
 on:
-  push:
-    branches:
-      - main
-  pull_request:
-    branches:
-      - main
+  pull_request: {}
 
 permissions:
   contents: read
