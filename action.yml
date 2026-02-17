@@ -28,7 +28,10 @@ inputs:
     description: "Print the markdown report out to runner logs (defaults to 'true')"
     required: false
     default: "true"
-
+  step_summary:
+    description: "Add the markdown report to the github step summary"
+    required: false
+    default: "true"
 
 runs:
   using: "composite"
@@ -38,46 +41,50 @@ runs:
       shell: bash
       run: |
         args=( lint --pipeline-output "${{ inputs.openapi_path }}" )
-        
+
         # --min-score <value>
         args+=( --min-score "${{ inputs.minimum_score }}" )
-        
+
         # --fail-severity none|error
         if [ "${{ inputs.fail_on_error }}" = "true" ]; then
           args+=( --fail-severity error )
         else
           args+=( --fail-severity none )
         fi
-        
+
         # --show-rules only if show_rules == "true"
         if [ "${{ inputs.show_rules }}" = "true" ]; then
           args+=( --show-rules )
         fi
-        
+
         # optional ruleset
         if [ -n "${{ inputs.ruleset }}" ]; then
           args+=( --ruleset "${{ inputs.ruleset }}" )
         fi
-        
+
         CMD=( docker run --rm \
                -v "$GITHUB_WORKSPACE":/work:ro \
                dshanley/vacuum "${args[@]}" )
-        
+
         echo "Running: ${CMD[*]}"
         report=$("${CMD[@]}")
-        
+
         REPORT_FILE="$GITHUB_WORKSPACE/vacuum-lint-report.md"
         {
           echo "<!-- vacuum-lint-report -->"
           echo
           echo "$report"
         } > "$REPORT_FILE"
-        
+
         # print logs to console if enabled
         if [ "${{ inputs.print_logs }}" = "true" ]; then
           cat "$REPORT_FILE"
         fi
-        
+
+        if [ "${{ inputs.step_summary }}" = "true" ]; then
+          cat "$REPORT_FILE" >> $GITHUB_STEP_SUMMARY
+        fi
+
         echo "report_path=vacuum-lint-report.md" >> "$GITHUB_OUTPUT"
       env:
         DOCKER_BUILDKIT: 1
@@ -87,9 +94,8 @@ runs:
       uses: peter-evans/find-comment@v3
       with:
         issue-number: ${{ github.event.pull_request.number }}
-        comment-author: 'github-actions[bot]'
+        comment-author: "github-actions[bot]"
         body-includes: "<!-- vacuum-lint-report -->"
-
 
     - name: Create or update vacuum-lint comment
       if: always()
@@ -101,7 +107,3 @@ runs:
         comment-id: ${{ steps.find-comment.outputs.comment-id }}
         body-path: ${{ steps.lint.outputs.report_path }}
         edit-mode: replace
-
-
-
-
