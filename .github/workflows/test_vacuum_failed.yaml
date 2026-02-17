@@ -1,0 +1,27 @@
+name: "Lint OpenAPI specification using vacuum (failing task)"
+
+on:
+  pull_request: {}
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  vacuum-lint:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v3
+
+      - name: Run OpenAPI lint with vacuum and custom ruleset
+        uses: ./
+        with:
+          show_rules: true
+          fail_on_error: true
+          minimum_score: 100
+          print_logs: true
+          ruleset: "sample-specs/ruleset.yaml"
+          openapi_path: "sample-specs/burgershop.yaml"
+          github_token: ${{ secrets.GITHUB_TOKEN }}
