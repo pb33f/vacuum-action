@@ -28,7 +28,10 @@ inputs:
     description: "Print the markdown report out to runner logs (defaults to 'true')"
     required: false
     default: "true"
-
+  step_summary:
+    description: "Add the markdown report to the github step summary"
+    required: false
+    default: "true"
 
 runs:
   using: "composite"
@@ -76,6 +79,10 @@ runs:
         # print logs to console if enabled
         if [ "${{ inputs.print_logs }}" = "true" ]; then
           cat "$REPORT_FILE"
+        fi
+        
+        if [ "${{ inputs.step_summary }}" = "true" ]; then
+          cat "$REPORT_FILE" >> $GITHUB_STEP_SUMMARY
         fi
         
         echo "report_path=vacuum-lint-report.md" >> "$GITHUB_OUTPUT"
