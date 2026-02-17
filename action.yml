@@ -28,6 +28,10 @@ inputs:
     description: "Print the markdown report out to runner logs (defaults to 'true')"
     required: false
     default: "true"
+  post_comment:
+    description: "Post comment to PR (skipped if action was not triggered by PR)"
+    required: false
+    default: "true"
 
 
 runs:
@@ -84,6 +88,8 @@ runs:
 
     - name: Find existing vacuum-lint comment (if any)
       id: find-comment
+      if: ${{ github.event_name == 'pull_request' && inputs.post_comment == 'true' }}
+      continue-on-error: true
       uses: peter-evans/find-comment@v3
       with:
         issue-number: ${{ github.event.pull_request.number }}
@@ -92,7 +98,7 @@ runs:
 
 
     - name: Create or update vacuum-lint comment
-      if: always()
+      if: ${{ github.event_name == 'pull_request' && inputs.post_comment == 'true' }}
       uses: peter-evans/create-or-update-comment@v4
       with:
         token: ${{ inputs.github_token }}
