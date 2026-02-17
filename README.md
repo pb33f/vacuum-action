@@ -19,6 +19,7 @@ Here are the configurable properties you can use in your workflow:
 | `fail_on_error`  | `boolean` | _false_  | If set to `true`, the action will fail if any errors are detected in the OpenAPI spec. Defaults to `true`                      |
 | `minimum_score`  | `number`  | _false_  | The minimum score required to not fail the check. Defaults to `70`.                                                            |
 | `print_logs`     | `boolean` | _false_  | If set to `true`, the action will print the markdown report to the runner logs. Defaults to `true`                             |
+| `post_comment`   | `boolean` | _false_  | If set to `true`, the action will post the markdown report to a comment on the PR. Defaults to `true`                          |
 
 ---
 
@@ -88,5 +89,6 @@ jobs:
           fail_on_error: true
           minimum_score: 90
           print_logs: true
+          post_comment: true
           github_token: ${{ secrets.GITHUB_TOKEN }}
 ```
