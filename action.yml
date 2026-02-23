@@ -68,7 +68,11 @@ runs:
                "dshanley/vacuum:${{ inputs.vacuum_version }}" "${args[@]}" )
         
         echo "Running: ${CMD[*]}"
+        set +e
         report=$("${CMD[@]}")
+        EXIT_CODE=$?
+        set -e
+        echo "exit_code=$EXIT_CODE" >> "$GITHUB_OUTPUT"
         
         REPORT_FILE="$GITHUB_WORKSPACE/vacuum-lint-report.md"
         {
@@ -96,7 +100,6 @@ runs:
 
 
     - name: Create or update vacuum-lint comment
-      if: always()
       uses: peter-evans/create-or-update-comment@v4
       with:
         token: ${{ inputs.github_token }}
@@ -107,4 +110,8 @@ runs:
         edit-mode: replace
 
 
+    - name: Passthrough linter exit code
+      shell: bash
+      run: |
+        exit ${{ steps.lint.outputs.exit_code }}
 
