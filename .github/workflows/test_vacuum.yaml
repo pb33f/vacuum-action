@@ -8,12 +8,12 @@ permissions:
   pull-requests: write
 
 jobs:
-  vacuum-lint:
+  vacuum-lint-success:
     runs-on: ubuntu-latest
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Run OpenAPI lint with vacuum
         uses: ./
@@ -22,8 +22,21 @@ jobs:
           fail_on_error: true
           minimum_score: 80
           print_logs: false
-          openapi_path: "sample-specs/burgershop.yaml"
+          openapi_path: "sample-specs/*shop.{yaml,yml}"
           github_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Assert globbed lint report covers both sample specs
+        shell: bash
+        run: |
+          if ! grep -q 'sample-specs/burgershop.yaml' vacuum-lint-report.md; then
+            echo "Expected burgershop spec to appear in the report." >&2
+            exit 1
+          fi
+
+          if ! grep -q 'sample-specs/frieshop.yaml' vacuum-lint-report.md; then
+            echo "Expected frieshop spec to appear in the report." >&2
+            exit 1
+          fi
 
       - name: Run OpenAPI lint with vacuum and custom ruleset
         uses: ./
@@ -35,3 +48,75 @@ jobs:
           ruleset: "sample-specs/ruleset.yaml"
           openapi_path: "sample-specs/burgershop.yaml"
           github_token: ${{ secrets.GITHUB_TOKEN }}
+
+  vacuum-lint-failure-report:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Run OpenAPI lint with a failing minimum score
+        id: failing-lint
+        continue-on-error: true
+        uses: ./
+        with:
+          fail_on_error: true
+          minimum_score: 101
+          print_logs: false
+          openapi_path: "sample-specs/*shop.{yaml,yml}"
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Assert failing lint still produced a report
+        shell: bash
+        run: |
+          if [ "${{ steps.failing-lint.outcome }}" != "failure" ]; then
+            echo "Expected the lint step to fail." >&2
+            exit 1
+          fi
+
+          if [ ! -s vacuum-lint-report.md ]; then
+            echo "Expected vacuum-lint-report.md to exist and be non-empty." >&2
+            exit 1
+          fi
+
+          if ! grep -q '<!-- vacuum-lint-report -->' vacuum-lint-report.md; then
+            echo "Expected the report marker to be present." >&2
+            exit 1
+          fi
+
+          if ! grep -q '^## \[vacuum\]' vacuum-lint-report.md; then
+            echo "Expected the markdown report header to be present." >&2
+            exit 1
+          fi
+
+  vacuum-lint-no-match:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Run OpenAPI lint with a non-matching glob
+        id: no-match
+        continue-on-error: true
+        uses: ./
+        with:
+          fail_on_error: true
+          minimum_score: 80
+          print_logs: false
+          openapi_path: "sample-specs/does-not-exist.{yaml,yml}"
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Assert a non-matching glob fails before report creation
+        shell: bash
+        run: |
+          if [ "${{ steps.no-match.outcome }}" != "failure" ]; then
+            echo "Expected the no-match lint step to fail." >&2
+            exit 1
+          fi
+
+          if [ -e vacuum-lint-report.md ]; then
+            echo "Did not expect a report file when no OpenAPI files matched." >&2
+            exit 1
+          fi

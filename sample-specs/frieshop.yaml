@@ -1,0 +1,135 @@
+openapi: 3.1.0
+info:
+  title: Fry Shop
+  description: |
+    A small sample API for listing fries and sauces.
+  termsOfService: https://quobix.com
+  contact:
+    name: quobix
+  license:
+    name: Quobix
+  version: "1.0"
+tags:
+  - name: Fries
+    description: Crispy potato products.
+  - name: Sauces
+    description: Dips for fries.
+servers:
+  - url: https://quobix.com/api
+paths:
+  /fries:
+    get:
+      operationId: listFries
+      tags:
+        - Fries
+      summary: List fries
+      description: Return all fries currently available on the menu.
+      responses:
+        "200":
+          description: A list of fries.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Fry'
+              examples:
+                default:
+                  summary: Classic fries
+                  value:
+                    - id: regular-fries
+                      name: Regular Fries
+                      salted: true
+        "500":
+          description: Unexpected error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                unexpectedError:
+                  summary: Fry failure
+                  value:
+                    message: something went terribly wrong retrieving fries.
+  /sauces/{sauceId}:
+    get:
+      operationId: getSauce
+      tags:
+        - Sauces
+      summary: Get sauce by ID
+      description: Return one sauce for dipping fries.
+      parameters:
+        - in: path
+          name: sauceId
+          required: true
+          description: The sauce identifier.
+          schema:
+            type: string
+          example: aioli
+      responses:
+        "200":
+          description: A sauce for your fries.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Sauce'
+              examples:
+                default:
+                  summary: Garlic aioli
+                  value:
+                    id: aioli
+                    name: Garlic Aioli
+                    spicy: false
+        "404":
+          description: Sauce not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                notFound:
+                  summary: Missing sauce
+                  value:
+                    message: no sauce found for that identifier.
+components:
+  schemas:
+    Fry:
+      type: object
+      required:
+        - id
+        - name
+        - salted
+      properties:
+        id:
+          type: string
+          example: regular-fries
+        name:
+          type: string
+          example: Regular Fries
+        salted:
+          type: boolean
+          example: true
+    Sauce:
+      type: object
+      required:
+        - id
+        - name
+        - spicy
+      properties:
+        id:
+          type: string
+          example: aioli
+        name:
+          type: string
+          example: Garlic Aioli
+        spicy:
+          type: boolean
+          example: false
+    Error:
+      type: object
+      required:
+        - message
+      properties:
+        message:
+          type: string
+          example: something went terribly wrong.
