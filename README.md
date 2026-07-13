@@ -10,16 +10,16 @@ All you need to do is add the action to your repo via a workflow via `pb33f/vacu
 
 Here are the configurable properties you can use in your workflow:
 
-| Property         | Type      | Required | Description                                                                                                                    |
-|------------------|-----------|----------|--------------------------------------------------------------------------------------------------------------------------------|
-| `openapi_path`   | `string`  | **true** | The path to your OpenAPI spec file, relative to the root of your repository.                                                   |
-| `github_token`   | `string`  | **true** | The GitHub token to use for authentication. This is required to post comments on pull requests.                                |
-| `ruleset`        | `string`  | _false_  | The path to a custom ruleset file, relative to the root of your repository. If not provided, the default ruleset will be used. | 
-| `show_rules`     | `boolean` | _false_  | If set to `true`, the action will show the rules that were applied. Defaults to `false`                                        |
-| `fail_on_error`  | `boolean` | _false_  | If set to `true`, the action will fail if any errors are detected in the OpenAPI spec. Defaults to `true`                      |
-| `minimum_score`  | `number`  | _false_  | The minimum score required to not fail the check. Defaults to `70`.                                                            |
-| `print_logs`     | `boolean` | _false_  | If set to `true`, the action will print the markdown report to the runner logs. Defaults to `true`                             |
-| `vacuum_version` | `string`  | _false_  | The vacuum Docker image tag to use. Defaults to `latest`.                                                                      |
+| Property         | Type      | Required | Description                                                                                                                                                  |
+|------------------|-----------|----------|--------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `openapi_path`   | `string`  | **true** | The path or glob pattern for your OpenAPI spec file(s), relative to the root of your repository. Brace patterns such as `specs/*.{yaml,yml}` are supported.  |
+| `github_token`   | `string`  | **true** | The GitHub token to use for authentication. This is required to post comments on pull requests.                                                              |
+| `ruleset`        | `string`  | _false_  | The path to a custom ruleset file, relative to the root of your repository. If not provided, the default ruleset will be used.                               | 
+| `show_rules`     | `boolean` | _false_  | If set to `true`, the action will show the rules that were applied. Defaults to `false`                                                                      |
+| `fail_on_error`  | `boolean` | _false_  | If set to `true`, the action will fail if any errors are detected in the OpenAPI spec. Defaults to `true`                                                    |
+| `minimum_score`  | `number`  | _false_  | The minimum score required to not fail the check. Defaults to `70`.                                                                                          |
+| `print_logs`     | `boolean` | _false_  | If set to `true`, the action will print the markdown report to the runner logs. Defaults to `true`                                                           |
+| `vacuum_version` | `string`  | _false_  | The vacuum Docker image tag to use. Defaults to `latest`.                                                                                                    |
 
 ---
 
@@ -83,7 +83,7 @@ jobs:
       - name: Run OpenAPI lint with vacuum
         uses: pb33f/vacuum-action@v2
         with:
-          openapi_path: "specs/openapi.yaml"
+          openapi_path: "specs/*.{yaml,yml}"
           ruleset: "rulesets/vacuum-ruleset.yaml"
           show_rules: true
           fail_on_error: true
@@ -92,3 +92,5 @@ jobs:
           vacuum_version: "v0.23.2"
           github_token: ${{ secrets.GITHUB_TOKEN }}
 ```
+
+Pull request comments are created or updated only for pull request events. On other events, the action still lints and fails the job when vacuum reports a failure.
