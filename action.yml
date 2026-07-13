@@ -105,7 +105,7 @@ runs:
 
     - name: Find existing vacuum-lint comment (if any)
       id: find-comment
-      if: ${{ github.event_name == 'pull_request' || github.event_name == 'pull_request_target' }}
+      if: github.event.pull_request != null
       uses: peter-evans/find-comment@v3
       with:
         issue-number: ${{ github.event.pull_request.number }}
@@ -114,7 +114,7 @@ runs:
 
 
     - name: Create or update vacuum-lint comment
-      if: ${{ always() && (github.event_name == 'pull_request' || github.event_name == 'pull_request_target') && steps.lint.outputs.has_report == 'true' }}
+      if: always() && github.event.pull_request != null && steps.lint.outputs.has_report == 'true'
       uses: peter-evans/create-or-update-comment@v4
       with:
         token: ${{ inputs.github_token }}
