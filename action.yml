@@ -22,8 +22,9 @@ inputs:
     required: false
     default: ""
   github_token:
-    description: "GitHub token (needs write permissions on PRs to post comments)"
-    required: true
+    description: "GitHub token for PR comments (needs pull-requests: write); omit to skip comments"
+    required: false
+    default: ""
   print_logs:
     description: "Print the markdown report out to runner logs (defaults to 'true')"
     required: false
@@ -40,81 +41,30 @@ runs:
     - name: Lint OpenAPI specification using vacuum
       id: lint
       shell: bash
-      run: |
-        set -euo pipefail
-
-        args=( lint --pipeline-output --globbed-files "$INPUT_OPENAPI_PATH" )
-        
-        # --min-score <value>
-        args+=( --min-score "${{ inputs.minimum_score }}" )
-        
-        # --fail-severity none|error
-        if [ "${{ inputs.fail_on_error }}" = "true" ]; then
-          args+=( --fail-severity error )
-        else
-          args+=( --fail-severity none )
-        fi
-        
-        # --show-rules only if show_rules == "true"
-        if [ "${{ inputs.show_rules }}" = "true" ]; then
-          args+=( --show-rules )
-        fi
-        
-        # optional ruleset
-        if [ -n "${{ inputs.ruleset }}" ]; then
-          args+=( --ruleset "${{ inputs.ruleset }}" )
-        fi
-        
-        CMD=( docker run --rm \
-               -v "$GITHUB_WORKSPACE":/work:ro \
-               "dshanley/vacuum:${{ inputs.vacuum_version }}" "${args[@]}" )
-        
-        echo "Running: ${CMD[*]}"
-        set +e
-        report=$("${CMD[@]}")
-        lint_exit_code=$?
-        set -e
-
-        report_body=$(printf '%s\n' "$report" | awk 'seen || /^#/{seen=1; print}')
-        if [ -z "$report_body" ]; then
-          report_body="$report"
-        fi
-        
-        REPORT_FILE="$GITHUB_WORKSPACE/vacuum-lint-report.md"
-        {
-          echo "<!-- vacuum-lint-report -->"
-          echo
-          printf '%s\n' "$report_body"
-        } > "$REPORT_FILE"
-        
-        # print logs to console if enabled
-        if [ "${{ inputs.print_logs }}" = "true" ]; then
-          cat "$REPORT_FILE"
-        fi
-        
-        echo "report_path=vacuum-lint-report.md" >> "$GITHUB_OUTPUT"
-        echo "lint_exit_code=$lint_exit_code" >> "$GITHUB_OUTPUT"
-        if [ -n "$report_body" ]; then
-          echo "has_report=true" >> "$GITHUB_OUTPUT"
-        else
-          echo "has_report=false" >> "$GITHUB_OUTPUT"
-        fi
+      run: bash "$GITHUB_ACTION_PATH/scripts/lint.sh"
       env:
         DOCKER_BUILDKIT: 1
         INPUT_OPENAPI_PATH: ${{ inputs.openapi_path }}
+        INPUT_MINIMUM_SCORE: ${{ inputs.minimum_score }}
+        INPUT_FAIL_ON_ERROR: ${{ inputs.fail_on_error }}
+        INPUT_SHOW_RULES: ${{ inputs.show_rules }}
+        INPUT_RULESET: ${{ inputs.ruleset }}
+        INPUT_PRINT_LOGS: ${{ inputs.print_logs }}
+        INPUT_VACUUM_VERSION: ${{ inputs.vacuum_version }}
 
     - name: Find existing vacuum-lint comment (if any)
       id: find-comment
-      if: github.event.pull_request != null
+      if: github.event.pull_request != null && inputs.github_token != '' && steps.lint.outputs.has_report == 'true'
       uses: peter-evans/find-comment@v3
       with:
+        token: ${{ inputs.github_token }}
         issue-number: ${{ github.event.pull_request.number }}
         comment-author: 'github-actions[bot]'
         body-includes: "<!-- vacuum-lint-report -->"
 
 
     - name: Create or update vacuum-lint comment
-      if: always() && github.event.pull_request != null && steps.lint.outputs.has_report == 'true'
+      if: success() && github.event.pull_request != null && inputs.github_token != '' && steps.lint.outputs.has_report == 'true'
       uses: peter-evans/create-or-update-comment@v4
       with:
         token: ${{ inputs.github_token }}
@@ -125,11 +75,12 @@ runs:
         edit-mode: replace
 
     - name: Fail action if vacuum lint failed
-      if: ${{ steps.lint.outputs.lint_exit_code != '0' }}
+      if: ${{ !cancelled() && steps.lint.outputs.lint_exit_code != '' && steps.lint.outputs.lint_exit_code != '0' }}
       shell: bash
+      env:
+        LINT_EXIT_CODE: ${{ steps.lint.outputs.lint_exit_code }}
       run: |
-        echo "vacuum lint failed with exit code ${{ steps.lint.outputs.lint_exit_code }}." >&2
+        echo "vacuum lint failed with exit code $LINT_EXIT_CODE." >&2
         exit 1
-
 
 

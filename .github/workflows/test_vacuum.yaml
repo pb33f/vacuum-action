@@ -2,12 +2,24 @@ name: "Lint OpenAPI specification using vacuum"
 
 on:
   pull_request: {}
+  push: {}
 
 permissions:
   contents: read
   pull-requests: write
 
 jobs:
+  action-regressions:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run shell and Docker regression tests
+        env:
+          VACUUM_ACTION_DOCKER_TESTS: '1'
+        run: python3 -m unittest discover -s tests -v
+
   vacuum-lint-success:
     runs-on: ubuntu-latest
 
@@ -23,7 +35,8 @@ jobs:
           minimum_score: 80
           print_logs: false
           openapi_path: "sample-specs/*shop.{yaml,yml}"
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+          vacuum_version: v0.30.6
+          github_token: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && secrets.GITHUB_TOKEN || '' }}
 
       - name: Assert globbed lint report covers both sample specs
         shell: bash
@@ -47,7 +60,8 @@ jobs:
           print_logs: true
           ruleset: "sample-specs/ruleset.yaml"
           openapi_path: "sample-specs/burgershop.yaml"
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+          vacuum_version: v0.30.6
+          github_token: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && secrets.GITHUB_TOKEN || '' }}
 
   vacuum-lint-failure-report:
     runs-on: ubuntu-latest
@@ -65,7 +79,8 @@ jobs:
           minimum_score: 101
           print_logs: false
           openapi_path: "sample-specs/*shop.{yaml,yml}"
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+          vacuum_version: v0.30.6
+          github_token: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && secrets.GITHUB_TOKEN || '' }}
 
       - name: Assert failing lint still produced a report
         shell: bash
@@ -106,7 +121,8 @@ jobs:
           minimum_score: 80
           print_logs: false
           openapi_path: "sample-specs/does-not-exist.{yaml,yml}"
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+          vacuum_version: v0.30.6
+          github_token: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && secrets.GITHUB_TOKEN || '' }}
 
       - name: Assert a non-matching glob fails before report creation
         shell: bash
