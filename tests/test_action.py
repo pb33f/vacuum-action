@@ -27,6 +27,7 @@ class LintFixture(unittest.TestCase):
         self.workspace = Path(self.temp.name)
         self.report = self.workspace / "vacuum-lint-report.md"
         self.output = self.workspace / "outputs"
+        self.summary = self.workspace / "job summary.md"
         self.env = dict(os.environ, **{
             "GITHUB_WORKSPACE": str(self.workspace),
             "GITHUB_OUTPUT": str(self.output),
@@ -36,6 +37,8 @@ class LintFixture(unittest.TestCase):
             "INPUT_SHOW_RULES": "false",
             "INPUT_RULESET": "",
             "INPUT_PRINT_LOGS": "false",
+            "INPUT_STEP_SUMMARY": "false",
+            "GITHUB_STEP_SUMMARY": str(self.summary),
             "INPUT_VACUUM_VERSION": "v0.30.6",
         })
         self.bin = self.workspace / "bin"
@@ -92,6 +95,35 @@ class LintTests(LintFixture):
         _, result = self.run_lint(print_logs="true")
         self.assertIn(self.report.read_text(), result.stdout)
 
+    def test_summary_is_opt_in_and_independent_of_logs(self):
+        self.summary.write_text("Existing summary\n")
+        self.run_lint(print_logs="true")
+        self.assertEqual(self.summary.read_text(), "Existing summary\n")
+        _, result = self.run_lint(step_summary="true", print_logs="false")
+        self.assertEqual(self.summary.read_text(), "Existing summary\n" + self.report.read_text())
+        self.assertNotIn(REPORT, result.stdout)
+
+    def test_summary_is_written_before_lint_failure(self):
+        for exit_code in [0, 2]:
+            with self.subTest(exit_code=exit_code):
+                self.summary.write_text("")
+                outputs, _ = self.run_lint(scored_report(10), exit_code=exit_code, step_summary="true")
+                self.assertEqual(outputs["lint_exit_code"], str(exit_code or 1))
+                self.assertEqual(self.summary.read_text(), self.report.read_text())
+
+    def test_no_report_leaves_existing_summary_untouched(self):
+        self.summary.write_text("Earlier step\n")
+        for message, exit_code in [("No files matched\n", 2), ("", 125)]:
+            with self.subTest(exit_code=exit_code):
+                self.run_lint(message, exit_code=exit_code, step_summary="true")
+                self.assertEqual(self.summary.read_text(), "Earlier step\n")
+
+    def test_repeated_reports_append_to_summary(self):
+        self.run_lint(scored_report(99), step_summary="true")
+        first = self.summary.read_text()
+        self.run_lint(scored_report(70), step_summary="true")
+        self.assertEqual(self.summary.read_text(), first + self.report.read_text())
+
     def test_no_match_does_not_publish_diagnostic_or_stale_report(self):
         self.run_lint()
         outputs, result = self.run_lint("Please supply a specification\n", exit_code=2)
@@ -142,6 +174,13 @@ class DockerTests(LintFixture):
         super().setUp()
         self.env["PATH"] = os.environ["PATH"]
         shutil.copytree(ROOT / "sample-specs", self.workspace / "sample-specs")
+
+    def test_multifile_summary_survives_score_failure(self):
+        outputs, _ = self.run_lint(minimum_score="101", step_summary="true")
+        self.assertEqual(outputs["lint_exit_code"], "1")
+        self.assertEqual(self.summary.read_text(), self.report.read_text())
+        self.assertIn("sample-specs/burgershop.yaml", self.summary.read_text())
+        self.assertIn("sample-specs/frieshop.yaml", self.summary.read_text())
 
     def test_docker_scenarios(self):
         cases = [
