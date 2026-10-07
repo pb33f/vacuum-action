@@ -18,6 +18,9 @@ fi
 if [ -n "$INPUT_RULESET" ]; then
   args+=(--ruleset "$INPUT_RULESET")
 fi
+if [ -n "$INPUT_IGNORE_FILE" ]; then
+  args+=(--ignore-file "$INPUT_IGNORE_FILE")
+fi
 
 CMD=(docker run --rm -v "$GITHUB_WORKSPACE":/work:ro
      "dshanley/vacuum:$INPUT_VACUUM_VERSION" "${args[@]}")

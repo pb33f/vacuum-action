@@ -21,6 +21,10 @@ inputs:
     description: "Optional ruleset file or URL for vacuum lint (e.g. 'rules/ruleset.yaml')"
     required: false
     default: ""
+  ignore_file:
+    description: "Optional Vacuum ignore file, relative to the repository root (e.g. 'vacuum.ignore.yaml')"
+    required: false
+    default: ""
   github_token:
     description: "GitHub token for PR comments (needs pull-requests: write); omit to skip comments"
     required: false
@@ -57,6 +61,7 @@ runs:
         INPUT_FAIL_ON_ERROR: ${{ inputs.fail_on_error }}
         INPUT_SHOW_RULES: ${{ inputs.show_rules }}
         INPUT_RULESET: ${{ inputs.ruleset }}
+        INPUT_IGNORE_FILE: ${{ inputs.ignore_file }}
         INPUT_PRINT_LOGS: ${{ inputs.print_logs }}
         INPUT_STEP_SUMMARY: ${{ inputs.step_summary }}
         INPUT_VACUUM_VERSION: ${{ inputs.vacuum_version }}

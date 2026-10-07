@@ -15,6 +15,7 @@ Here are the configurable properties you can use in your workflow:
 | `openapi_path`   | `string`  | **true** | The path or glob pattern for your OpenAPI spec file(s), relative to the root of your repository. Brace patterns such as `specs/*.{yaml,yml}` are supported.  |
 | `github_token`   | `string`  | _false_  | Token with `pull-requests: write` to post comments on pull requests. Omit to skip comments, including when testing untrusted fork PRs with a read-only token. |
 | `ruleset`        | `string`  | _false_  | The path to a custom ruleset file, relative to the root of your repository. If not provided, the default ruleset will be used.                               | 
+| `ignore_file`    | `string`  | _false_  | Path to a Vacuum ignore file relative to the repository root. Passed to `--ignore-file` for single files or globs. Defaults to empty (no ignore file). |
 | `show_rules`     | `boolean` | _false_  | If set to `true`, the action will show the rules that were applied. Defaults to `false`                                                                      |
 | `fail_on_error`  | `boolean` | _false_  | If set to `true`, the action will fail if any errors are detected in the OpenAPI spec. Defaults to `true`                                                    |
 | `minimum_score`  | `number`  | _false_  | The minimum score required for each matched specification. Defaults to `70`; still applies when `fail_on_error` is `false`.                                  |
@@ -24,6 +25,17 @@ Here are the configurable properties you can use in your workflow:
 | `vacuum_version` | `string`  | _false_  | The vacuum Docker image tag to use. Defaults to `latest`.                                                                                                    |
 
 ---
+
+## Ignore specific findings
+
+An ignore file maps rule IDs to the result paths to suppress. For example:
+
+```yaml
+oas3-missing-example:
+  - $.components.schemas.Burger.properties
+```
+
+Set `ignore_file: "vacuum.ignore.yaml"` to use this file. The same ignore file applies to every specification matched by `openapi_path`. Other findings and the configured minimum score still apply. The file must be inside the checked-out workspace; paths with spaces are supported. A missing or malformed ignore file fails the action.
 
 ## Example Workflow
 
@@ -87,6 +99,7 @@ jobs:
         with:
           openapi_path: "specs/*.{yaml,yml}"
           ruleset: "rulesets/vacuum-ruleset.yaml"
+          ignore_file: "vacuum.ignore.yaml"
           show_rules: true
           fail_on_error: true
           minimum_score: 90

@@ -189,3 +189,45 @@ jobs:
             echo "Did not expect a report file when no OpenAPI files matched." >&2
             exit 1
           fi
+
+  vacuum-lint-ignore-file:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Score fails without the ignore file
+        id: without-ignore
+        continue-on-error: true
+        uses: ./
+        with:
+          openapi_path: "sample-specs/*shop.{yaml,yml}"
+          vacuum_version: v0.30.6
+          minimum_score: 100
+          ruleset: "sample-specs/ruleset.yaml"
+          print_logs: false
+
+      - name: Assert the unsuppressed finding failed
+        env:
+          LINT_OUTCOME: ${{ steps.without-ignore.outcome }}
+        run: |
+          test "$LINT_OUTCOME" = failure
+          grep -q 'oas3-missing-example' vacuum-lint-report.md
+
+      - name: Ignore only the configured finding
+        uses: ./
+        with:
+          openapi_path: "sample-specs/*shop.{yaml,yml}"
+          vacuum_version: v0.30.6
+          minimum_score: 100
+          ruleset: "sample-specs/ruleset.yaml"
+          print_logs: false
+          ignore_file: "sample-specs/vacuum.ignore.yaml"
+
+      - name: Assert the ignored finding is absent
+        run: |
+          test -s vacuum-lint-report.md
+          if grep -q 'oas3-missing-example' vacuum-lint-report.md; then
+            echo 'Expected the ignore file to suppress the configured finding.' >&2
+            exit 1
+          fi

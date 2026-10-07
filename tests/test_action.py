@@ -32,6 +32,7 @@ class LintFixture(unittest.TestCase):
             "GITHUB_WORKSPACE": str(self.workspace),
             "GITHUB_OUTPUT": str(self.output),
             "INPUT_OPENAPI_PATH": "sample-specs/*shop.{yaml,yml}",
+            "INPUT_IGNORE_FILE": "",
             "INPUT_MINIMUM_SCORE": "70",
             "INPUT_FAIL_ON_ERROR": "true",
             "INPUT_SHOW_RULES": "false",
@@ -70,6 +71,18 @@ sys.exit(int(os.environ['TEST_EXIT_CODE']))
 
 
 class LintTests(LintFixture):
+    def test_ignore_file_is_one_literal_argument(self):
+        path = 'config files/$(touch injected) "ignore".yaml'
+        self.run_lint(ignore_file=path)
+        args = json.loads((self.workspace / "args.json").read_text())
+        self.assertEqual(args[-2:], ["--ignore-file", path])
+        self.assertFalse((self.workspace / "injected").exists())
+
+    def test_empty_ignore_file_omits_option(self):
+        self.run_lint()
+        args = json.loads((self.workspace / "args.json").read_text())
+        self.assertNotIn("--ignore-file", args)
+
     def test_glob_and_options_are_literal_arguments(self):
         path = "specs with spaces/**/*.{yaml,yml,json}"
         ruleset = 'rules/$(touch injected) "custom".yaml'
@@ -211,6 +224,46 @@ class DockerTests(LintFixture):
         self.assertEqual(outputs["lint_exit_code"], "0")
         for filename in ["first spec.yaml", "second spec.yml"]:
             self.assertIn(filename, self.report.read_text())
+
+    def test_ignore_file_changes_single_and_multifile_results(self):
+        ignore_dir = self.workspace / "config files"
+        ignore_dir.mkdir()
+        shutil.copy(ROOT / "sample-specs/vacuum.ignore.yaml", ignore_dir / "vacuum ignore.yaml")
+        for path in ["sample-specs/burgershop.yaml", "sample-specs/*shop.{yaml,yml}"]:
+            with self.subTest(path=path):
+                outputs, _ = self.run_lint(
+                    openapi_path=path, minimum_score="100", ignore_file="", ruleset="sample-specs/ruleset.yaml",
+                )
+                self.assertNotEqual(outputs["lint_exit_code"], "0")
+                self.assertIn("oas3-missing-example", self.report.read_text())
+                outputs, result = self.run_lint(ignore_file="config files/vacuum ignore.yaml")
+                self.assertEqual(outputs["lint_exit_code"], "0", result.stderr)
+                self.assertEqual(outputs["has_report"], "true")
+                self.assertNotIn("oas3-missing-example", self.report.read_text())
+
+    def test_ignore_file_does_not_hide_unmatched_findings(self):
+        (self.workspace / "unmatched.yaml").write_text("oas3-missing-example:\n  - $.info\n")
+        outputs, _ = self.run_lint(
+            openapi_path="sample-specs/burgershop.yaml", minimum_score="100", ignore_file="unmatched.yaml",
+        )
+        self.assertNotEqual(outputs["lint_exit_code"], "0")
+        self.assertIn("oas3-missing-example", self.report.read_text())
+
+    def test_other_findings_still_fail_multifile_minimum_score(self):
+        outputs, _ = self.run_lint(minimum_score="100", ignore_file="sample-specs/vacuum.ignore.yaml")
+        self.assertNotEqual(outputs["lint_exit_code"], "0")
+        self.assertNotIn("oas3-missing-example", self.report.read_text())
+        self.assertIn("component-description", self.report.read_text())
+
+    def test_invalid_ignore_file_fails(self):
+        (self.workspace / "malformed.yaml").write_text("rules: [\n")
+        for path in ["sample-specs/burgershop.yaml", "sample-specs/*shop.{yaml,yml}"]:
+            for ignore_file in ["missing.yaml", "malformed.yaml"]:
+                with self.subTest(path=path, ignore_file=ignore_file):
+                    outputs, result = self.run_lint(openapi_path=path, ignore_file=ignore_file)
+                    self.assertNotEqual(outputs["lint_exit_code"], "0", result.stderr)
+                    self.assertEqual(outputs["has_report"], "false")
+                    self.assertFalse(self.report.exists())
 
     def test_lint_errors_and_fail_on_error_false(self):
         specs = self.workspace / "errors"

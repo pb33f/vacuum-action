@@ -1,0 +1,3 @@
+# Suppress the sample Burger's deliberately missing example.
+oas3-missing-example:
+  - $.components.schemas.Burger.properties
