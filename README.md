@@ -19,6 +19,8 @@ Here are the configurable properties you can use in your workflow:
 | `fail_on_error`  | `boolean` | _false_  | If set to `true`, the action will fail if any errors are detected in the OpenAPI spec. Defaults to `true`                                                    |
 | `minimum_score`  | `number`  | _false_  | The minimum score required for each matched specification. Defaults to `70`; still applies when `fail_on_error` is `false`.                                  |
 | `print_logs`     | `boolean` | _false_  | If set to `true`, the action will print the markdown report to the runner logs. Defaults to `true`                                                           |
+| `step_summary`   | `boolean` | _false_  | Append the markdown report to the GitHub job summary, including after lint failures. Defaults to `false`. |
+| `post_comment`   | `boolean` | _false_  | Post or update a PR comment when a token and report are available. Defaults to `true`; non-PR events always skip comments. |
 | `vacuum_version` | `string`  | _false_  | The vacuum Docker image tag to use. Defaults to `latest`.                                                                                                    |
 
 ---
@@ -93,9 +95,28 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
 ```
 
-Pull request comments are created or updated only for pull request events when `github_token` is provided. On other events, the action still lints and fails the job when vacuum reports a failure or any specification falls below `minimum_score`.
+Pull request comments are created or updated only for pull request events when `github_token` is provided and `post_comment` is `true`. On other events, the action still lints and fails the job when vacuum reports a failure or any specification falls below `minimum_score`.
 
 The action writes `vacuum-lint-report.md` in the workspace when Vacuum produces a markdown report, including when linting fails. It handles PR comments before reporting the lint failure. An unmatched glob or command startup error fails without creating a report; any report from a previous invocation is removed.
+
+## Choose where reports appear
+
+Logs, job summaries, and PR comments are independently configurable. Existing workflows keep their current behavior: reports are printed to logs, PR comments are enabled when a token is supplied, and job summaries are off by default.
+
+For a job summary without PR comments:
+
+```yaml
+- uses: pb33f/vacuum-action@v2
+  with:
+    openapi_path: "specs/**/*.{yaml,yml}"
+    print_logs: false
+    step_summary: true
+    post_comment: false
+```
+
+For logs only, leave `print_logs: true` and `step_summary: false`, and set `post_comment: false`. A token is not needed for logs or summaries. To suppress all three destinations, set all three options to `false`; lint failures still fail the action and the report file is still available in the workspace. Command startup errors remain visible in the logs.
+
+Summaries append without replacing existing content and include reports from failing lint runs. No-match and startup errors do not add a report to the summary. Summary support follows GitHub's [job summary behavior and limits](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-commands#adding-a-job-summary).
 
 ## Development
 

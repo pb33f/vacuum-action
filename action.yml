@@ -29,6 +29,14 @@ inputs:
     description: "Print the markdown report out to runner logs (defaults to 'true')"
     required: false
     default: "true"
+  step_summary:
+    description: "Add the markdown report to the GitHub job summary (default: false)"
+    required: false
+    default: "false"
+  post_comment:
+    description: "Post the report as a PR comment when a token is supplied (default: true)"
+    required: false
+    default: "true"
   vacuum_version:
     description: "Vacuum Docker image tag to use (default: latest)"
     required: false
@@ -50,11 +58,12 @@ runs:
         INPUT_SHOW_RULES: ${{ inputs.show_rules }}
         INPUT_RULESET: ${{ inputs.ruleset }}
         INPUT_PRINT_LOGS: ${{ inputs.print_logs }}
+        INPUT_STEP_SUMMARY: ${{ inputs.step_summary }}
         INPUT_VACUUM_VERSION: ${{ inputs.vacuum_version }}
 
     - name: Find existing vacuum-lint comment (if any)
       id: find-comment
-      if: github.event.pull_request != null && inputs.github_token != '' && steps.lint.outputs.has_report == 'true'
+      if: inputs.post_comment == 'true' && github.event.pull_request != null && inputs.github_token != '' && steps.lint.outputs.has_report == 'true'
       uses: peter-evans/find-comment@v3
       with:
         token: ${{ inputs.github_token }}
@@ -64,7 +73,7 @@ runs:
 
 
     - name: Create or update vacuum-lint comment
-      if: success() && github.event.pull_request != null && inputs.github_token != '' && steps.lint.outputs.has_report == 'true'
+      if: success() && inputs.post_comment == 'true' && github.event.pull_request != null && inputs.github_token != '' && steps.lint.outputs.has_report == 'true'
       uses: peter-evans/create-or-update-comment@v4
       with:
         token: ${{ inputs.github_token }}

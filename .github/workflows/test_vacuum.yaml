@@ -20,6 +20,59 @@ jobs:
           VACUUM_ACTION_DOCKER_TESTS: '1'
         run: python3 -m unittest discover -s tests -v
 
+  reporting-options:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Disable comments even with a nonempty token
+        uses: ./
+        with:
+          openapi_path: "sample-specs/*shop.{yaml,yml}"
+          vacuum_version: v0.30.6
+          print_logs: false
+          step_summary: true
+          post_comment: false
+          # Deliberately invalid: either comment step running must fail this test.
+          github_token: comments-must-not-run
+
+      - name: Disabled comments still preserve a failing report
+        id: failing-summary
+        continue-on-error: true
+        uses: ./
+        with:
+          openapi_path: "sample-specs/*shop.{yaml,yml}"
+          vacuum_version: v0.30.6
+          minimum_score: 101
+          print_logs: false
+          step_summary: true
+          post_comment: false
+          github_token: comments-must-not-run
+
+      - name: Assert lint failure was preserved
+        env:
+          LINT_OUTCOME: ${{ steps.failing-summary.outcome }}
+        run: |
+          test "$LINT_OUTCOME" = failure
+          test -s vacuum-lint-report.md
+
+      - name: Enabled comments skip non-PR events
+        if: github.event_name != 'pull_request'
+        uses: ./
+        with:
+          openapi_path: "sample-specs/burgershop.yaml"
+          vacuum_version: v0.30.6
+          post_comment: true
+          github_token: comments-must-not-run
+
+      - name: Enabled comments skip a missing token
+        uses: ./
+        with:
+          openapi_path: "sample-specs/burgershop.yaml"
+          vacuum_version: v0.30.6
+          post_comment: true
+
   vacuum-lint-success:
     runs-on: ubuntu-latest
 

@@ -49,6 +49,9 @@ if [ -n "$report_body" ]; then
   if [ "$INPUT_PRINT_LOGS" = "true" ]; then
     cat "$REPORT_FILE"
   fi
+  if [ "$INPUT_STEP_SUMMARY" = "true" ]; then
+    cat "$REPORT_FILE" >> "$GITHUB_STEP_SUMMARY"
+  fi
   echo 'report_path=vacuum-lint-report.md' >> "$GITHUB_OUTPUT"
   echo 'has_report=true' >> "$GITHUB_OUTPUT"
 else
