@@ -21,12 +21,31 @@ fi
 if [ -n "$INPUT_IGNORE_FILE" ]; then
   args+=(--ignore-file "$INPUT_IGNORE_FILE")
 fi
+IMAGE="dshanley/vacuum:$INPUT_VACUUM_VERSION"
+annotate=false
+if [ "$INPUT_GITHUB_ANNOTATIONS" = "true" ]; then
+  # --github-annotations arrived in vacuum v0.30.3, and older images reject unknown flags,
+  # so ask the pinned image before passing it.
+  if docker run --rm "$IMAGE" lint --help 2>/dev/null | grep -q -- '--github-annotations'; then
+    annotate=true
+    args+=(--github-annotations)
+  else
+    echo "vacuum $INPUT_VACUUM_VERSION doesn't support --github-annotations (v0.30.3 or later does), so files won't be annotated." >&2
+  fi
+fi
 
-CMD=(docker run --rm -v "$GITHUB_WORKSPACE":/work:ro
-     "dshanley/vacuum:$INPUT_VACUUM_VERSION" "${args[@]}")
+CMD=(docker run --rm -v "$GITHUB_WORKSPACE":/work:ro "$IMAGE" "${args[@]}")
 echo "Running: ${CMD[*]}"
 lint_exit_code=0
 report=$("${CMD[@]}") || lint_exit_code=$?
+
+if [ "$annotate" = "true" ]; then
+  # The runner reads workflow commands from stdout, so emit them whatever print_logs says,
+  # and keep them out of the markdown used for logs, summaries and comments.
+  annotation='^::(error|warning|notice)[ :]'
+  printf '%s\n' "$report" | grep -E "$annotation" || true
+  report=$(printf '%s\n' "$report" | grep -Ev "$annotation" || true)
+fi
 
 # Discard startup chatter, but retain file headings and markdown processing errors.
 report_body=$(printf '%s\n' "$report" | awk 'seen || /^#/{seen=1; print}')

@@ -23,6 +23,7 @@ Here are the configurable properties you can use in your workflow:
 | `step_summary`   | `boolean` | _false_  | Append the markdown report to the GitHub job summary, including after lint failures. Defaults to `false`. |
 | `post_comment`   | `boolean` | _false_  | Post or update a PR comment when a token and report are available. Defaults to `true`; non-PR events always skip comments. |
 | `vacuum_version` | `string`  | _false_  | The vacuum Docker image tag to use. Defaults to `latest`.                                                                                                    |
+| `github_annotations` | `boolean` | _false_ | Annotate each finding on its file and line using GitHub workflow commands. Skipped on vacuum images older than `v0.30.3`. Defaults to `true`. |
 
 ---
 
@@ -130,6 +131,12 @@ For a job summary without PR comments:
 For logs only, leave `print_logs: true` and `step_summary: false`, and set `post_comment: false`. A token is not needed for logs or summaries. To suppress all three destinations, set all three options to `false`; lint failures still fail the action and the report file is still available in the workspace. Command startup errors remain visible in the logs.
 
 Summaries append without replacing existing content and include reports from failing lint runs. No-match and startup errors do not add a report to the summary. Summary support follows GitHub's [job summary behavior and limits](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-commands#adding-a-job-summary).
+
+## Annotate files
+
+By default the action passes `--github-annotations` to vacuum. Each finding becomes an error, warning or notice annotation on the file and line it applies to, shown in the workflow run and, where the line is part of the diff, in the pull request's changed files. A failed score threshold on a single specification is also annotated. The annotations are written to the step's output whatever `print_logs` is set to, and are kept out of the markdown report, so logs, job summaries and PR comments are unchanged. A token is not needed. Set `github_annotations: false` to turn annotations off. When `vacuum_version` pins an image older than `v0.30.3`, which doesn't support the flag, the action checks the image first, skips annotations and says so in the log, so older pins keep working.
+
+GitHub shows at most 10 warning and 10 error annotations per step, as its [check runs documentation](https://docs.github.com/en/rest/checks/runs) states, so the markdown report remains the complete list of findings.
 
 ## Development
 

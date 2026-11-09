@@ -45,6 +45,10 @@ inputs:
     description: "Vacuum Docker image tag to use (default: latest)"
     required: false
     default: "latest"
+  github_annotations:
+    description: "Annotate files with each finding using GitHub workflow commands; skipped on images older than vacuum v0.30.3 (default: true)"
+    required: false
+    default: "true"
 
 
 runs:
@@ -65,6 +69,7 @@ runs:
         INPUT_PRINT_LOGS: ${{ inputs.print_logs }}
         INPUT_STEP_SUMMARY: ${{ inputs.step_summary }}
         INPUT_VACUUM_VERSION: ${{ inputs.vacuum_version }}
+        INPUT_GITHUB_ANNOTATIONS: ${{ inputs.github_annotations }}
 
     - name: Find existing vacuum-lint comment (if any)
       id: find-comment
