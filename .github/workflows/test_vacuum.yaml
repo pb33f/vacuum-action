@@ -73,6 +73,28 @@ jobs:
           vacuum_version: v0.30.6
           post_comment: true
 
+      - name: Annotate findings by default without changing the report
+        uses: ./
+        with:
+          openapi_path: "sample-specs/burgershop.yaml"
+          vacuum_version: v0.30.6
+          print_logs: false
+
+      - name: Assert annotations stayed out of the report
+        run: |
+          test -s vacuum-lint-report.md
+          ! grep -q '^::' vacuum-lint-report.md
+
+      - name: Skip annotations on images without the flag
+        uses: ./
+        with:
+          openapi_path: "sample-specs/burgershop.yaml"
+          vacuum_version: v0.30.0
+          print_logs: false
+
+      - name: Assert the older image still produced a report
+        run: test -s vacuum-lint-report.md
+
   vacuum-lint-success:
     runs-on: ubuntu-latest
 

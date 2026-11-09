@@ -11,6 +11,11 @@ import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
 REPORT = "## [vacuum](https://quobix.com/vacuum/) OpenAPI quality report\n"
+ANNOTATIONS = [
+    "::warning title=oas3-missing-example,file=specs/a.yaml,col=9,line=307::missing `example`",
+    "::notice title=info-contact,file=specs/a.yaml,col=1,line=2::info is missing a contact",
+    "::error file=specs/a.yaml::score threshold failed: overall score is 69, but the threshold is 70",
+]
 
 
 def scored_report(score):
@@ -41,6 +46,7 @@ class LintFixture(unittest.TestCase):
             "INPUT_STEP_SUMMARY": "false",
             "GITHUB_STEP_SUMMARY": str(self.summary),
             "INPUT_VACUUM_VERSION": "v0.30.6",
+            "INPUT_GITHUB_ANNOTATIONS": "false",
         })
         self.bin = self.workspace / "bin"
         self.bin.mkdir()
@@ -48,6 +54,10 @@ class LintFixture(unittest.TestCase):
         docker.write_text("""#!/usr/bin/env python3
 import json, os, sys
 from pathlib import Path
+if sys.argv[-1] == '--help':
+    Path(os.environ['GITHUB_WORKSPACE'], 'help-args.json').write_text(json.dumps(sys.argv[1:]))
+    sys.stdout.write(os.environ.get('TEST_HELP', '      --github-annotations   Emit GitHub Actions file annotation lines\\n'))
+    sys.exit(0)
 Path(os.environ['GITHUB_WORKSPACE'], 'args.json').write_text(json.dumps(sys.argv[1:]))
 sys.stdout.write(os.environ['TEST_STDOUT'])
 sys.stderr.write(os.environ['TEST_STDERR'])
@@ -71,6 +81,11 @@ sys.exit(int(os.environ['TEST_EXIT_CODE']))
 
 
 class LintTests(LintFixture):
+    def test_github_annotations_default_to_on(self):
+        action = (ROOT / "action.yml").read_text()
+        self.assertRegex(action, r'\n  github_annotations:\n(    \w+: .*\n)*?    default: "true"\n')
+        self.assertIn("INPUT_GITHUB_ANNOTATIONS: ${{ inputs.github_annotations }}", action)
+
     def test_ignore_file_is_one_literal_argument(self):
         path = 'config files/$(touch injected) "ignore".yaml'
         self.run_lint(ignore_file=path)
@@ -172,6 +187,60 @@ class LintTests(LintFixture):
         self.assertEqual(args[args.index("--fail-severity") + 1], "none")
         self.assertEqual(outputs["lint_exit_code"], "1")
 
+    def test_github_annotations_can_be_turned_off(self):
+        _, result = self.run_lint(print_logs="true")
+        args = json.loads((self.workspace / "args.json").read_text())
+        self.assertNotIn("--github-annotations", args)
+        self.assertNotIn("::", result.stdout)
+
+        outputs, result = self.run_lint(github_annotations="true")
+        args = json.loads((self.workspace / "args.json").read_text())
+        self.assertEqual(args[-1], "--github-annotations")
+        self.assertEqual(outputs["has_report"], "true")
+
+    def test_github_annotations_reach_stdout_but_not_the_report(self):
+        stdout = scored_report(69) + "\n" + "\n".join(ANNOTATIONS) + "\n"
+        for print_logs, step_summary in [("false", "false"), ("true", "true")]:
+            with self.subTest(print_logs=print_logs, step_summary=step_summary):
+                self.summary.write_text("")
+                outputs, result = self.run_lint(
+                    stdout, github_annotations="true", print_logs=print_logs, step_summary=step_summary,
+                )
+                stdout_lines = result.stdout.splitlines()
+                for annotation in ANNOTATIONS:
+                    self.assertEqual(stdout_lines.count(annotation), 1)
+                report = self.report.read_text()
+                self.assertEqual(report, "<!-- vacuum-lint-report -->\n\n" + scored_report(69))
+                self.assertNotIn("::", self.summary.read_text())
+                self.assertEqual(outputs, {
+                    "report_path": "vacuum-lint-report.md", "has_report": "true", "lint_exit_code": "1",
+                })
+
+    def test_github_annotations_skip_images_without_the_flag(self):
+        self.env["TEST_HELP"] = "      --pipeline-output   Renders CI/CD summary output\n"
+        stdout = REPORT + "\n".join(ANNOTATIONS) + "\n"
+        outputs, result = self.run_lint(stdout, github_annotations="true", vacuum_version="v0.30.0")
+        args = json.loads((self.workspace / "args.json").read_text())
+        help_args = json.loads((self.workspace / "help-args.json").read_text())
+        self.assertEqual(help_args, ["run", "--rm", "dshanley/vacuum:v0.30.0", "lint", "--help"])
+        self.assertNotIn("--github-annotations", args)
+        self.assertNotIn("::", result.stdout)
+        self.assertIn("doesn't support --github-annotations", result.stderr)
+        self.assertEqual(outputs["has_report"], "true")
+        self.assertEqual(outputs["lint_exit_code"], "0")
+
+    def test_github_annotations_off_skips_the_probe(self):
+        self.run_lint(github_annotations="false")
+        self.assertFalse((self.workspace / "help-args.json").exists())
+
+    def test_github_annotations_keep_cli_failures(self):
+        outputs, result = self.run_lint(
+            "\n".join(ANNOTATIONS[:1]) + "\n", exit_code=2, github_annotations="true",
+        )
+        self.assertEqual(outputs, {"has_report": "false", "lint_exit_code": "2"})
+        self.assertIn(ANNOTATIONS[0], result.stdout.splitlines())
+        self.assertFalse(self.report.exists())
+
     def test_multifile_processing_errors_remain_in_report(self):
         body = "## ❌ Error processing `invalid.yaml`\n\n> invalid specification\n"
         outputs, _ = self.run_lint(body, exit_code=2)
@@ -254,6 +323,35 @@ class DockerTests(LintFixture):
         self.assertNotEqual(outputs["lint_exit_code"], "0")
         self.assertNotIn("oas3-missing-example", self.report.read_text())
         self.assertIn("component-description", self.report.read_text())
+
+    def test_github_annotations_enabled_and_disabled(self):
+        for path in ["sample-specs/burgershop.yaml", "sample-specs/*shop.{yaml,yml}"]:
+            with self.subTest(path=path):
+                outputs, result = self.run_lint(openapi_path=path, minimum_score="101", github_annotations="false")
+                disabled = self.report.read_text()
+                self.assertEqual(outputs["lint_exit_code"], "1", result.stderr)
+                self.assertNotIn("::", result.stdout)
+
+                outputs, result = self.run_lint(github_annotations="true")
+                self.assertEqual(outputs["lint_exit_code"], "1", result.stderr)
+                self.assertEqual(outputs["has_report"], "true")
+                self.assertEqual(self.report.read_text(), disabled)
+                self.assertNotIn("::", disabled)
+                annotations = [line for line in result.stdout.splitlines() if line.startswith("::")]
+                self.assertIn(
+                    "::warning title=oas3-missing-example,file=sample-specs/burgershop.yaml,"
+                    "col=9,endColumn=14,line=307,endLine=307::"
+                    "media type schema property `fries` is missing `examples` or `example`",
+                    annotations,
+                )
+                if "*" in path:
+                    self.assertTrue(any("file=sample-specs/frieshop.yaml" in line for line in annotations))
+                else:
+                    self.assertIn(
+                        "::error file=sample-specs/burgershop.yaml::"
+                        "score threshold failed: overall score is 99, but the threshold is 101",
+                        annotations,
+                    )
 
     def test_invalid_ignore_file_fails(self):
         (self.workspace / "malformed.yaml").write_text("rules: [\n")
